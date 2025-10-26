@@ -272,8 +272,8 @@
         let refreshRate = 10; // seconds
         let buildingTypesChart, anomalyChart, weatherChart;
 
-        // API base URL
-        const API_BASE = 'http://localhost:5000';
+        // API base URLs
+        const API_BASE = 'http://localhost:5000';  // Main API for all features
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -454,11 +454,12 @@
         // Update weather chart
         async function updateWeatherChart() {
             try {
-                const weatherData = await fetchData('/api/weather-analysis');
-                console.log('Weather data received:', weatherData);
+                const weatherData = await fetch(`${API_BASE}/api/weather-analysis`);
+                const data = await weatherData.json();
+                console.log('Weather data received:', data);
                 
-                if (weatherData.status === 'success') {
-                    const correlations = weatherData.correlations;
+                if (data.status === 'success') {
+                    const correlations = data.correlations;
                     weatherChart.data.datasets[0].data = [
                         correlations.temperature || 0,
                         correlations.wind_speed || 0
@@ -471,7 +472,8 @@
                         statsDiv.innerHTML = `
                             🌡️ Temperature: ${(correlations.temperature || 0).toFixed(3)}<br>
                             💨 Wind Speed: ${(correlations.wind_speed || 0).toFixed(3)}<br>
-                            📊 Sample Size: ${weatherData.temperature_analysis?.sample_size || 'N/A'}
+                            📊 Sample Size: ${data.temperature_analysis?.sample_size || 'N/A'}
+                            ${data.note ? '<br><small>' + data.note + '</small>' : ''}
                         `;
                     }
                     console.log('Weather chart updated successfully');
@@ -490,11 +492,12 @@
         // Update stream mining status
         async function updateStreamMining() {
             try {
-                const streamData = await fetchData('/api/stream-mining-demo');
-                console.log('Stream mining data received:', streamData);
+                const streamData = await fetch(`${API_BASE}/api/stream-mining-demo`);
+                const data = await streamData.json();
+                console.log('Stream mining data received:', data);
                 
-                if (streamData.status === 'success') {
-                    const results = streamData.stream_mining_results;
+                if (data.status === 'success') {
+                    const results = data.stream_mining_results;
                     const statsDiv = document.getElementById('streamMiningStats');
                     
                     if (statsDiv) {
@@ -515,6 +518,7 @@
                                     <p style="margin: 5px 0; font-size: 14px;">Memory: ${results.dgim_stats.memory_usage}B</p>
                                 </div>
                             </div>
+                            ${data.note ? '<div style="margin-top: 10px; font-size: 12px; color: #666;">' + data.note + '</div>' : ''}
                         `;
                     }
                     console.log('Stream mining status updated successfully');

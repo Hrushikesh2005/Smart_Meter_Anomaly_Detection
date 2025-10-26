@@ -29,16 +29,23 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend
 app.json_encoder = CustomJSONEncoder
 
-# Global variables for database connection
+# Global variables for database connection and caching
 client = None
 db = None
+cache = {}  # Simple in-memory cache
+cache_timeout = 300  # 5 minutes
 
 def get_db_connection():
-    """Get MongoDB connection with error handling"""
+    """Get MongoDB connection with error handling and optimization"""
     global client, db
     if client is None:
         try:
-            client = MongoClient('mongodb://localhost:27017/', serverSelectionTimeoutMS=5000)
+            client = MongoClient(
+                'mongodb://localhost:27017/', 
+                serverSelectionTimeoutMS=5000,
+                maxPoolSize=10,  # Connection pooling for performance
+                retryWrites=True
+            )
             db = client['smart_meter_db']
             # Test connection
             client.server_info()
@@ -49,12 +56,29 @@ def get_db_connection():
             db = None
     return db
 
+def get_cached_data(key, fetch_function, *args, **kwargs):
+    """Simple caching mechanism for performance optimization"""
+    import time
+    
+    current_time = time.time()
+    
+    # Check if we have cached data and it's not expired
+    if key in cache:
+        cached_data, timestamp = cache[key]
+        if current_time - timestamp < cache_timeout:
+            return cached_data
+    
+    # Fetch fresh data
+    data = fetch_function(*args, **kwargs)
+    cache[key] = (data, current_time)
+    return data
+
 @app.route('/')
 def home():
     """API welcome message"""
     return jsonify({
-        'message': 'Smart Meter Anomaly Detection API',
-        'version': '1.0',
+        'message': 'Smart Meter Anomaly Detection API - Phase 3',
+        'version': '3.0',
         'status': 'running',
         'endpoints': [
             '/api/stats',
@@ -62,7 +86,17 @@ def home():
             '/api/building/<building_id>',
             '/api/anomalies',
             '/api/detect/<building_id>',
-            '/api/recent-readings'
+            '/api/recent-readings',
+            '/api/weather-analysis',
+            '/api/stream-mining-demo',
+            '/api/performance-stats'
+        ],
+        'features': [
+            'Real-time building monitoring',
+            'Anomaly detection algorithms', 
+            'Weather correlation analysis',
+            'Stream mining demos (Bloom Filter + DGIM)',
+            'Performance optimization'
         ]
     })
 
@@ -333,6 +367,185 @@ def get_anomalies():
     
     except Exception as e:
         return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+@app.route('/api/weather-analysis')
+def get_weather_analysis():
+    """Get weather correlation analysis"""
+    
+    db = get_db_connection()
+    if db is None:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        # Get sample data for weather analysis (cached approach for performance)
+        pipeline = [
+            {'$match': {'air_temperature': {'$ne': None}, 'meter_reading': {'$ne': None}}},
+            {'$sample': {'size': 2000}},
+            {'$project': {
+                'meter_reading': 1, 'air_temperature': 1, 'wind_speed': 1,
+                'primary_use': 1, 'building_id': 1, 'timestamp': 1
+            }}
+        ]
+        
+        data = list(db['meter_readings'].aggregate(pipeline))
+        
+        if len(data) < 100:
+            return jsonify({'error': 'Insufficient weather data'}), 404
+        
+        # Calculate correlations using numpy for performance
+        import pandas as pd
+        df = pd.DataFrame(data)
+        
+        # Temperature correlation
+        temp_corr = df['meter_reading'].corr(df['air_temperature'])
+        wind_corr = df['meter_reading'].corr(df['wind_speed']) if 'wind_speed' in df.columns else 0
+        
+        # Temperature ranges analysis
+        df['temp_range'] = pd.cut(df['air_temperature'], 
+                                 bins=5, labels=['Very Cold', 'Cold', 'Moderate', 'Warm', 'Hot'])
+        temp_analysis = df.groupby('temp_range')['meter_reading'].agg(['mean', 'std', 'count'])
+        
+        # Convert to serializable format
+        temp_ranges = {}
+        for temp_range in temp_analysis.index:
+            if pd.notna(temp_analysis.loc[temp_range, 'mean']):
+                temp_ranges[str(temp_range)] = {
+                    'mean': float(temp_analysis.loc[temp_range, 'mean']),
+                    'std': float(temp_analysis.loc[temp_range, 'std']),
+                    'count': int(temp_analysis.loc[temp_range, 'count'])
+                }
+        
+        return jsonify({
+            'correlations': {
+                'temperature': float(temp_corr) if not pd.isna(temp_corr) else 0,
+                'wind_speed': float(wind_corr) if not pd.isna(wind_corr) else 0
+            },
+            'temperature_analysis': {
+                'ranges': temp_ranges,
+                'sample_size': len(data)
+            },
+            'analysis_timestamp': datetime.now().isoformat(),
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Weather analysis failed: {str(e)}'}), 500
+
+@app.route('/api/stream-mining-demo')
+def stream_mining_demo():
+    """Demonstrate stream mining capabilities with real data"""
+    
+    try:
+        # Import stream mining classes
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from stream_mining import BloomFilter, DGIM
+        
+        db = get_db_connection()
+        if db is None:
+            return jsonify({'error': 'Database connection failed'}), 500
+        
+        # Initialize stream mining components with optimized parameters
+        bloom_filter = BloomFilter(capacity=1000, error_rate=0.01)
+        dgim = DGIM(window_size=3600)  # 1 hour window
+        
+        # Get recent anomalies for demonstration
+        anomalies = list(db['meter_readings'].find(
+            {'anomaly': 1, 'meter_reading': {'$ne': None}},
+            {'building_id': 1, 'timestamp': 1, 'meter_reading': 1}
+        ).limit(100))
+        
+        processed_count = 0
+        duplicate_count = 0
+        current_time = datetime.now().timestamp()
+        
+        for anomaly in anomalies:
+            anomaly_id = f"{anomaly['building_id']}_{anomaly['meter_reading']:.2f}"
+            
+            # Check for duplicates with Bloom Filter
+            if bloom_filter.contains(anomaly_id):
+                duplicate_count += 1
+            else:
+                bloom_filter.add(anomaly_id)
+            
+            # Add to DGIM for windowed counting
+            dgim.add_bit(1, current_time - processed_count * 10)  # Simulate time intervals
+            processed_count += 1
+        
+        # Get statistics
+        bf_stats = bloom_filter.get_stats()
+        dgim_stats = dgim.get_stats()
+        
+        return jsonify({
+            'stream_mining_results': {
+                'total_processed': processed_count,
+                'duplicates_detected': duplicate_count,
+                'duplicate_rate': (duplicate_count / processed_count * 100) if processed_count > 0 else 0,
+                'bloom_filter_stats': {
+                    'capacity': bf_stats['capacity'],
+                    'items_added': bf_stats['items_added'],
+                    'utilization': bf_stats['utilization'] * 100,
+                    'estimated_error_rate': bf_stats['estimated_fpr'] * 100
+                },
+                'dgim_stats': {
+                    'window_size': dgim_stats['window_size'],
+                    'estimated_count': dgim_stats['estimated_ones_in_window'],
+                    'bucket_count': dgim_stats['bucket_count'],
+                    'memory_usage': dgim_stats['memory_usage_bytes']
+                }
+            },
+            'demo_timestamp': datetime.now().isoformat(),
+            'status': 'success'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Stream mining demo failed: {str(e)}'}), 500
+
+@app.route('/api/performance-stats')
+def get_performance_stats():
+    """Get system performance statistics"""
+    
+    db = get_db_connection()
+    if db is None:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        import time
+        start_time = time.time()
+        
+        # Quick database stats
+        total_readings = db['meter_readings'].estimated_document_count()
+        total_buildings = len(db['meter_readings'].distinct('building_id'))
+        
+        # Memory usage estimation (fallback if psutil not available)
+        memory_usage = 0
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_usage = process.memory_info().rss / 1024 / 1024  # MB
+        except ImportError:
+            memory_usage = 0  # Fallback if psutil not installed
+        
+        query_time = time.time() - start_time
+        
+        return jsonify({
+            'performance': {
+                'total_readings': total_readings,
+                'total_buildings': total_buildings,
+                'query_time_ms': round(query_time * 1000, 2),
+                'memory_usage_mb': round(memory_usage, 2),
+                'api_status': 'optimized'
+            },
+            'database': {
+                'connection_status': 'active',
+                'response_time_ms': round(query_time * 1000, 2)
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Performance stats failed: {str(e)}'}), 500
 
 @app.route('/api/recent-readings')
 def get_recent_readings():
