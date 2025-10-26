@@ -240,6 +240,23 @@
                 </div>
             </div>
 
+            <div class="card">
+                <h2>🌤️ Weather Correlation Analysis</h2>
+                <div class="chart-container">
+                    <canvas id="weatherChart"></canvas>
+                </div>
+                <div id="weatherStats" style="font-size: 12px; color: #666; margin-top: 10px;">
+                    Loading weather analysis...
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🔍 Stream Mining Status</h2>
+                <div id="streamMiningStats" style="padding: 20px; text-align: center;">
+                    <div class="loading">Loading stream mining data...</div>
+                </div>
+            </div>
+
             <div class="card full-width">
                 <h2>🏢 Building Monitor (Latest 20 Buildings)</h2>
                 <div class="building-grid" id="buildingGrid">
@@ -253,7 +270,7 @@
         // Global variables
         let refreshInterval;
         let refreshRate = 10; // seconds
-        let buildingTypesChart, anomalyChart;
+        let buildingTypesChart, anomalyChart, weatherChart;
 
         // API base URL
         const API_BASE = 'http://localhost:5000';
@@ -332,6 +349,43 @@
                     }
                 }
             });
+
+            // Weather Correlation Chart
+            const ctx3 = document.getElementById('weatherChart').getContext('2d');
+            weatherChart = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: ['Temperature', 'Wind Speed'],
+                    datasets: [{
+                        label: 'Correlation',
+                        data: [0, 0],
+                        backgroundColor: ['#17a2b8', '#ffc107'],
+                        borderRadius: 8,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            min: -1,
+                            max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         // Fetch data from API
@@ -397,6 +451,85 @@
             console.log('Anomaly chart updated successfully');
         }
 
+        // Update weather chart
+        async function updateWeatherChart() {
+            try {
+                const weatherData = await fetchData('/api/weather-analysis');
+                console.log('Weather data received:', weatherData);
+                
+                if (weatherData.status === 'success') {
+                    const correlations = weatherData.correlations;
+                    weatherChart.data.datasets[0].data = [
+                        correlations.temperature || 0,
+                        correlations.wind_speed || 0
+                    ];
+                    weatherChart.update();
+                    
+                    // Update weather stats text
+                    const statsDiv = document.getElementById('weatherStats');
+                    if (statsDiv) {
+                        statsDiv.innerHTML = `
+                            🌡️ Temperature: ${(correlations.temperature || 0).toFixed(3)}<br>
+                            💨 Wind Speed: ${(correlations.wind_speed || 0).toFixed(3)}<br>
+                            📊 Sample Size: ${weatherData.temperature_analysis?.sample_size || 'N/A'}
+                        `;
+                    }
+                    console.log('Weather chart updated successfully');
+                } else {
+                    throw new Error('Weather analysis failed');
+                }
+            } catch (error) {
+                console.error('Failed to update weather chart:', error);
+                const statsDiv = document.getElementById('weatherStats');
+                if (statsDiv) {
+                    statsDiv.innerHTML = '<span style="color: #dc3545;">❌ Weather data unavailable</span>';
+                }
+            }
+        }
+
+        // Update stream mining status
+        async function updateStreamMining() {
+            try {
+                const streamData = await fetchData('/api/stream-mining-demo');
+                console.log('Stream mining data received:', streamData);
+                
+                if (streamData.status === 'success') {
+                    const results = streamData.stream_mining_results;
+                    const statsDiv = document.getElementById('streamMiningStats');
+                    
+                    if (statsDiv) {
+                        statsDiv.innerHTML = `
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left;">
+                                <div style="background: rgba(23, 162, 184, 0.1); padding: 15px; border-radius: 8px;">
+                                    <h4 style="margin: 0 0 10px 0; color: #17a2b8;">🔍 Bloom Filter</h4>
+                                    <p style="margin: 5px 0; font-size: 14px;">Processed: ${results.total_processed}</p>
+                                    <p style="margin: 5px 0; font-size: 14px;">Duplicates: ${results.duplicates_detected}</p>
+                                    <p style="margin: 5px 0; font-size: 14px;">Rate: ${results.duplicate_rate.toFixed(2)}%</p>
+                                    <p style="margin: 5px 0; font-size: 14px;">Utilization: ${results.bloom_filter_stats.utilization.toFixed(1)}%</p>
+                                </div>
+                                <div style="background: rgba(255, 193, 7, 0.1); padding: 15px; border-radius: 8px;">
+                                    <h4 style="margin: 0 0 10px 0; color: #ffc107;">📊 DGIM Algorithm</h4>
+                                    <p style="margin: 5px 0; font-size: 14px;">Window: ${Math.round(results.dgim_stats.window_size/60)}min</p>
+                                    <p style="margin: 5px 0; font-size: 14px;">Count: ${results.dgim_stats.estimated_count}</p>
+                                    <p style="margin: 5px 0; font-size: 14px;">Buckets: ${results.dgim_stats.bucket_count}</p>
+                                    <p style="margin: 5px 0; font-size: 14px;">Memory: ${results.dgim_stats.memory_usage}B</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    console.log('Stream mining status updated successfully');
+                } else {
+                    throw new Error('Stream mining demo failed');
+                }
+            } catch (error) {
+                console.error('Failed to update stream mining status:', error);
+                const statsDiv = document.getElementById('streamMiningStats');
+                if (statsDiv) {
+                    statsDiv.innerHTML = '<div class="error" style="color: #dc3545;">❌ Stream mining data unavailable</div>';
+                }
+            }
+        }
+
         // Update building grid
         async function updateBuildingGrid() {
             try {
@@ -434,6 +567,12 @@
                 
                 // Update building grid
                 await updateBuildingGrid();
+                
+                // Update weather analysis (async to not block other updates)
+                updateWeatherChart().catch(err => console.log('Weather update failed:', err));
+                
+                // Update stream mining status (async to not block other updates)
+                updateStreamMining().catch(err => console.log('Stream mining update failed:', err));
                 
                 console.log('Dashboard refreshed successfully');
             } catch (error) {
