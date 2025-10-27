@@ -1,301 +1,60 @@
 # Smart Meter Anomaly Detection - .gitignore
 
-# =============================================================================
 # Python
-# =============================================================================
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+dist/
+build/
 
-# =============================================================================
-# Virtual Environments
-# =============================================================================
+# Virtual Environment
 venv/
 env/
 ENV/
-env.bak/
-venv.bak/
 .venv/
-.env/
 
-# =============================================================================
-# Data Files (Large datasets and sensitive data)
-# =============================================================================
-data/
-*.csv
-*.json
-*.parquet
-*.h5
-*.hdf5
-*.pkl
-*.pickle
-*.feather
-*.xlsx
-*.xls
+# Data Files (Large datasets)
+data/*.csv
+data/*.json
+data/*.parquet
 
-# Keep sample or small test data
-!data/sample/
-!data/test/
-!*sample*.csv
-!*test*.csv
-
-# =============================================================================
-# Database Files
-# =============================================================================
-*.db
-*.sqlite
-*.sqlite3
-*.db-journal
-
-# MongoDB dumps
-dumps/
-mongodb_backup/
-
-# =============================================================================
-# Logs and Output Files
-# =============================================================================
-*.log
-logs/
-log/
-*.out
-*.err
-
-# =============================================================================
-# IDE and Editor Files
-# =============================================================================
-# Visual Studio Code
+# IDE
 .vscode/
+.idea/
 *.code-workspace
 
-# PyCharm
-.idea/
-*.iml
-*.iws
-
-# Jupyter Notebook
-.ipynb_checkpoints/
-*.ipynb
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-# Vim
+# Operating System
+.DS_Store
+Thumbs.db
 *.swp
 *.swo
-*~
 
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
+# Logs
+*.log
+logs/
 
-# =============================================================================
-# Operating System Files
-# =============================================================================
-# Windows
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-*.stackdump
-[Dd]esktop.ini
-$RECYCLE.BIN/
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
-*.lnk
+# Database
+*.db
+*.sqlite
 
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
+# Jupyter Notebooks
+.ipynb_checkpoints/
 
-# Linux
-*~
-.fuse_hidden*
-.directory
-.Trash-*
-.nfs*
-
-# =============================================================================
-# Machine Learning and Data Science
-# =============================================================================
-# Model files
-*.model
-*.pkl
-*.joblib
-*.h5
-*.hdf5
-models/
-checkpoints/
-saved_models/
-
-# Tensorboard logs
-tensorboard_logs/
-tb_logs/
-
-# MLflow
-mlruns/
-mlartifacts/
-
-# =============================================================================
-# Configuration and Secrets
-# =============================================================================
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Configuration files with secrets
-config/secrets/
-config/production/
-*.key
-*.pem
-*.crt
-*.cert
-credentials.json
-auth.json
-
-# =============================================================================
-# Testing and Coverage
-# =============================================================================
+# Testing
 .pytest_cache/
 .coverage
-.coverage.*
 htmlcov/
-.tox/
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-cover/
 
-# =============================================================================
-# Documentation
-# =============================================================================
-docs/_build/
-docs/build/
-site/
-
-# =============================================================================
-# Node.js (if using any JavaScript tools)
-# =============================================================================
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# =============================================================================
-# R (if using R for analysis)
-# =============================================================================
-.Rhistory
-.Rapp.history
-.RData
-.Ruserdata
-*-Ex.R
-/*.tar.gz
-/*.Rcheck/
-.Rproj.user/
-
-# =============================================================================
-# Temporary and Cache Files
-# =============================================================================
+# Temporary files
 *.tmp
 *.temp
 *.cache
-.cache/
 tmp/
-temp/
+train_model.bat
 
-# =============================================================================
-# Project Specific
-# =============================================================================
-# Flask session files
-flask_session/
-
-# API keys and tokens
-api_keys.txt
-tokens.txt
-
-# Large output files
-output/
-results/
-exports/
-
-# Backup files
-*.bak
-*.backup
-*.old
-
-# MongoDB connection strings (if in separate files)
-mongodb_config.py
-database_config.py
-
-# Test artifacts
-test_output/
-test_results/
-
-# =============================================================================
-# Keep Important Files
-# =============================================================================
-# Keep README and documentation
+# Keep important files
 !README.md
-!PHASE_3_COMPLETE.md
 !requirements.txt
-
-# Keep source code structure
-!scripts/
-!frontend/
-!*.py
-!*.html
-!*.css
-!*.js
-
-# Keep small sample files for testing
-!data/sample*
-!*_sample.*
