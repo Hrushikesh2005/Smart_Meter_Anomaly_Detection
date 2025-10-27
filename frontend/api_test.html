@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - Smart Meter Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Smart Meter API Test</h1>
+        <p>Use this page to test if the Flask API is working correctly:</p>
+        
+        <div>
+            <button class="test-button" onclick="testAPI('/api/stats')">Test Stats API</button>
+            <button class="test-button" onclick="testAPI('/api/buildings?limit=3')">Test Buildings API</button>
+            <button class="test-button" onclick="testAPI('/api/anomalies')">Test Anomalies API</button>
+            <button class="test-button" onclick="testAPI('/')">Test Root API</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        
+        async function testAPI(endpoint) {
+            const resultsDiv = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            try {
+                console.log(`Testing: ${API_BASE}${endpoint}`);
+                
+                const response = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                const result = document.createElement('div');
+                result.className = 'result';
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result.className += ' success';
+                    result.textContent = `✅ ${timestamp} - ${endpoint}\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`;
+                } else {
+                    result.className += ' error';
+                    result.textContent = `❌ ${timestamp} - ${endpoint}\nStatus: ${response.status}\nError: ${response.statusText}`;
+                }
+                
+                resultsDiv.insertBefore(result, resultsDiv.firstChild);
+                
+            } catch (error) {
+                const result = document.createElement('div');
+                result.className = 'result error';
+                result.textContent = `❌ ${timestamp} - ${endpoint}\nNetwork Error: ${error.message}\n\nTroubleshooting:\n1. Make sure Flask API is running on http://localhost:5000\n2. Check if MongoDB is running\n3. Verify CORS is enabled in Flask\n4. Check browser console for additional errors`;
+                
+                resultsDiv.insertBefore(result, resultsDiv.firstChild);
+                
+                console.error('API Test Error:', error);
+            }
+        }
+        
+        // Auto-test on page load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                testAPI('/');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

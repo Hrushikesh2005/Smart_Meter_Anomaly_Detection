@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Meter Anomaly Classifier - XGBoost</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .input-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .results-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .section-title {
+            font-size: 1.4em;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .classify-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .classify-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .classify-btn:disabled {
+            background: #ccc;
+            transform: none;
+            cursor: not-allowed;
+        }
+        
+        .result-card {
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .result-normal {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+        
+        .result-anomaly {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+        
+        .probability-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .probability-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+        
+        .feature-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #1976d2;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .model-status {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .example-values {
+            background: #f1f8e9;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+            font-size: 0.85em;
+            color: #558b2f;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Smart Meter Anomaly Classifier</h1>
+            <p>XGBoost-powered real-time anomaly detection for smart meter readings</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Input Section -->
+            <div class="input-section">
+                <h2 class="section-title">
+                    📊 Input Meter Reading
+                </h2>
+                
+                <div class="model-status" id="modelStatus">
+                    🔄 Checking model status...
+                </div>
+                
+                <form id="classificationForm">
+                    <div class="form-group">
+                        <label for="meterReading">Meter Reading (kWh)</label>
+                        <input type="number" id="meterReading" step="0.01" required>
+                        <div class="example-values">Example: 150.75 (typical range: 50-500)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="buildingId">Building ID</label>
+                        <input type="number" id="buildingId" required>
+                        <div class="example-values">Example: 123 (any building ID)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="airTemperature">Air Temperature (°F)</label>
+                        <input type="number" id="airTemperature" step="0.1" required>
+                        <div class="example-values">Example: 72.5 (range: 30-100)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="windSpeed">Wind Speed (mph)</label>
+                        <input type="number" id="windSpeed" step="0.1" required>
+                        <div class="example-values">Example: 5.2 (range: 0-30)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="squareFeet">Building Size (sq ft)</label>
+                        <input type="number" id="squareFeet" required>
+                        <div class="example-values">Example: 5000 (range: 1000-50000)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="floorCount">Floor Count</label>
+                        <input type="number" id="floorCount" min="1" required>
+                        <div class="example-values">Example: 3 (range: 1-20)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="primaryUse">Primary Use</label>
+                        <select id="primaryUse" required>
+                            <option value="">Select building type</option>
+                            <option value="Office">Office</option>
+                            <option value="Education">Education</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Lodging/residential">Lodging/residential</option>
+                            <option value="Entertainment/public assembly">Entertainment/public assembly</option>
+                            <option value="Public services">Public services</option>
+                            <option value="Warehouse/storage">Warehouse/storage</option>
+                            <option value="Food sales and service">Food sales and service</option>
+                            <option value="Religious worship">Religious worship</option>
+                            <option value="Manufacturing/industrial">Manufacturing/industrial</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="yearBuilt">Year Built</label>
+                        <input type="number" id="yearBuilt" min="1900" max="2025" required>
+                        <div class="example-values">Example: 2010 (range: 1900-2025)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="hour">Hour of Day</label>
+                        <input type="number" id="hour" min="0" max="23" required>
+                        <div class="example-values">Example: 14 (0-23, 24-hour format)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="dayOfWeek">Day of Week</label>
+                        <select id="dayOfWeek" required>
+                            <option value="">Select day</option>
+                            <option value="0">Monday</option>
+                            <option value="1">Tuesday</option>
+                            <option value="2">Wednesday</option>
+                            <option value="3">Thursday</option>
+                            <option value="4">Friday</option>
+                            <option value="5">Saturday</option>
+                            <option value="6">Sunday</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="classify-btn" id="classifyBtn">
+                        🔍 Classify Reading
+                    </button>
+                </form>
+                
+                <div class="feature-info">
+                    ℹ️ The XGBoost model uses advanced feature engineering including temporal patterns, 
+                    building characteristics, weather interactions, and consumption statistics to 
+                    accurately detect anomalies.
+                </div>
+            </div>
+            
+            <!-- Results Section -->
+            <div class="results-section">
+                <h2 class="section-title">
+                    🎯 Classification Results
+                </h2>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing reading with XGBoost...</p>
+                </div>
+                
+                <div id="results" style="display: none;">
+                    <div id="resultCard" class="result-card">
+                        <div id="resultText"></div>
+                        <div id="probabilityText"></div>
+                    </div>
+                    
+                    <div>
+                        <strong>Anomaly Probability:</strong>
+                        <div class="probability-bar">
+                            <div id="probabilityFill" class="probability-fill"></div>
+                        </div>
+                        <div style="text-align: center; margin-top: 5px;">
+                            <span id="probabilityPercent">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                        <strong>🔍 Analysis Details:</strong>
+                        <div id="analysisDetails" style="margin-top: 10px; font-size: 0.9em;"></div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
+                        <strong>💡 Recommendations:</strong>
+                        <div id="recommendations" style="margin-top: 10px; font-size: 0.9em;"></div>
+                    </div>
+                </div>
+                
+                <div id="noResults" style="text-align: center; color: #666; padding: 40px;">
+                    <div style="font-size: 3em; margin-bottom: 10px;">📊</div>
+                    <p>Enter meter reading details and click "Classify Reading" to get XGBoost anomaly analysis.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        
+        // Check model status on page load
+        async function checkModelStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/ml/status`);
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('modelStatus');
+                if (data.model_trained) {
+                    statusDiv.innerHTML = `
+                        ✅ <strong>XGBoost Model Ready</strong><br>
+                        Accuracy: ${(data.metrics.accuracy * 100).toFixed(1)}% | 
+                        AUC: ${data.metrics.auc_score.toFixed(3)} | 
+                        Features: ${data.feature_count}
+                    `;
+                    statusDiv.style.background = '#d4edda';
+                    statusDiv.style.borderColor = '#c3e6cb';
+                    statusDiv.style.color = '#155724';
+                } else {
+                    statusDiv.innerHTML = `
+                        ⚠️ <strong>Model Not Trained</strong><br>
+                        Please train the XGBoost model first using the training interface.
+                    `;
+                    statusDiv.style.background = '#f8d7da';
+                    statusDiv.style.borderColor = '#f5c6cb';
+                    statusDiv.style.color = '#721c24';
+                }
+            } catch (error) {
+                document.getElementById('modelStatus').innerHTML = `
+                    ❌ <strong>API Connection Error</strong><br>
+                    Make sure the Flask API is running on localhost:5000
+                `;
+            }
+        }
+        
+        // Handle form submission
+        document.getElementById('classificationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('noResults').style.display = 'none';
+            document.getElementById('classifyBtn').disabled = true;
+            
+            try {
+                // Collect form data
+                const formData = {
+                    meter_reading: parseFloat(document.getElementById('meterReading').value),
+                    building_id: parseInt(document.getElementById('buildingId').value),
+                    air_temperature: parseFloat(document.getElementById('airTemperature').value),
+                    wind_speed: parseFloat(document.getElementById('windSpeed').value),
+                    square_feet: parseInt(document.getElementById('squareFeet').value),
+                    floor_count: parseInt(document.getElementById('floorCount').value),
+                    primary_use: document.getElementById('primaryUse').value,
+                    year_built: parseInt(document.getElementById('yearBuilt').value),
+                    hour: parseInt(document.getElementById('hour').value),
+                    day_of_week: parseInt(document.getElementById('dayOfWeek').value),
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Make prediction request
+                const response = await fetch(`${API_BASE}/ml/classify-single`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayResults(result.data, formData);
+                } else {
+                    throw new Error(result.message || 'Classification failed');
+                }
+                
+            } catch (error) {
+                console.error('Classification error:', error);
+                
+                // Hide loading and show error
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').style.display = 'none';
+                document.getElementById('noResults').innerHTML = `
+                    <div style="color: #dc3545;">
+                        <div style="font-size: 3em; margin-bottom: 10px;">❌</div>
+                        <p><strong>Classification Error</strong></p>
+                        <p>${error.message}</p>
+                        <p style="margin-top: 15px; font-size: 0.9em;">
+                            Make sure the Flask API is running and the model is trained.
+                        </p>
+                    </div>
+                `;
+                document.getElementById('noResults').style.display = 'block';
+            } finally {
+                document.getElementById('classifyBtn').disabled = false;
+            }
+        });
+        
+        function displayResults(data, inputData) {
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Show results
+            document.getElementById('results').style.display = 'block';
+            
+            const isAnomaly = data.predicted_anomaly === 1;
+            const probability = data.anomaly_probability * 100;
+            
+            // Update result card
+            const resultCard = document.getElementById('resultCard');
+            const resultText = document.getElementById('resultText');
+            const probabilityText = document.getElementById('probabilityText');
+            
+            if (isAnomaly) {
+                resultCard.className = 'result-card result-anomaly';
+                resultText.innerHTML = '⚠️ ANOMALY DETECTED';
+                probabilityText.innerHTML = `High risk reading identified`;
+            } else {
+                resultCard.className = 'result-card result-normal';
+                resultText.innerHTML = '✅ NORMAL READING';
+                probabilityText.innerHTML = `Reading within expected range`;
+            }
+            
+            // Update probability bar
+            const probabilityFill = document.getElementById('probabilityFill');
+            const probabilityPercent = document.getElementById('probabilityPercent');
+            
+            probabilityFill.style.width = `${probability}%`;
+            probabilityFill.style.background = probability > 50 ? 
+                'linear-gradient(90deg, #ff6b6b, #ee5a52)' : 
+                'linear-gradient(90deg, #4CAF50, #45a049)';
+            probabilityPercent.textContent = `${probability.toFixed(1)}%`;
+            
+            // Analysis details
+            const consumptionPerSqFt = inputData.meter_reading / inputData.square_feet;
+            const buildingAge = 2025 - inputData.year_built;
+            const isWeekend = inputData.day_of_week >= 5;
+            const isBusinessHours = inputData.hour >= 8 && inputData.hour <= 18;
+            
+            document.getElementById('analysisDetails').innerHTML = `
+                • <strong>Consumption/sq ft:</strong> ${consumptionPerSqFt.toFixed(3)} kWh/sq ft<br>
+                • <strong>Building age:</strong> ${buildingAge} years<br>
+                • <strong>Time context:</strong> ${isWeekend ? 'Weekend' : 'Weekday'}, ${isBusinessHours ? 'Business hours' : 'Off hours'}<br>
+                • <strong>Weather factor:</strong> ${inputData.air_temperature}°F, ${inputData.wind_speed} mph wind<br>
+                • <strong>Building type:</strong> ${inputData.primary_use}
+            `;
+            
+            // Recommendations
+            let recommendations = '';
+            if (isAnomaly) {
+                recommendations = `
+                    • <strong>Immediate:</strong> Investigate meter for potential malfunctions<br>
+                    • <strong>Check:</strong> Unusual equipment usage or HVAC issues<br>
+                    • <strong>Monitor:</strong> Track subsequent readings for patterns<br>
+                    • <strong>Verify:</strong> Building occupancy and operational schedules
+                `;
+            } else {
+                recommendations = `
+                    • <strong>Status:</strong> Meter reading appears normal for this building<br>
+                    • <strong>Continue:</strong> Regular monitoring schedule<br>
+                    • <strong>Optimize:</strong> Consider energy efficiency opportunities<br>
+                    • <strong>Benchmark:</strong> Compare with similar buildings
+                `;
+            }
+            
+            document.getElementById('recommendations').innerHTML = recommendations;
+        }
+        
+        // Auto-fill example values
+        function fillExampleValues() {
+            document.getElementById('meterReading').value = '185.5';
+            document.getElementById('buildingId').value = '123';
+            document.getElementById('airTemperature').value = '72.5';
+            document.getElementById('windSpeed').value = '5.2';
+            document.getElementById('squareFeet').value = '5000';
+            document.getElementById('floorCount').value = '3';
+            document.getElementById('primaryUse').value = 'Office';
+            document.getElementById('yearBuilt').value = '2010';
+            document.getElementById('hour').value = '14';
+            document.getElementById('dayOfWeek').value = '2';
+        }
+        
+        // Add example button
+        setTimeout(() => {
+            const exampleBtn = document.createElement('button');
+            exampleBtn.type = 'button';
+            exampleBtn.className = 'classify-btn';
+            exampleBtn.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
+            exampleBtn.style.marginBottom = '10px';
+            exampleBtn.innerHTML = '📝 Fill Example Values';
+            exampleBtn.onclick = fillExampleValues;
+            
+            const form = document.getElementById('classificationForm');
+            form.insertBefore(exampleBtn, form.lastElementChild.previousElementSibling);
+        }, 100);
+        
+        // Initialize
+        checkModelStatus();
+    </script>
+</body>
+</html>

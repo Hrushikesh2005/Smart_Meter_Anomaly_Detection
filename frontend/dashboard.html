@@ -223,6 +223,9 @@
             <button class="btn" onclick="setRefreshRate(30)">30s Refresh</button>
             <button class="btn" onclick="setRefreshRate(60)">1m Refresh</button>
             <button class="btn" onclick="manualRefresh()">🔄 Refresh Now</button>
+            <a href="data-entry.html" class="btn" style="background: #28a745; text-decoration: none; display: inline-block;">
+                📝 Add Data
+            </a>
         </div>
 
         <div class="dashboard-grid">
@@ -351,17 +354,49 @@
             });
 
             // Weather Correlation Chart
+            // Weather correlation scatter plot
             const ctx3 = document.getElementById('weatherChart').getContext('2d');
             weatherChart = new Chart(ctx3, {
-                type: 'bar',
+                type: 'scatter',
                 data: {
-                    labels: ['Temperature', 'Wind Speed'],
                     datasets: [{
-                        label: 'Correlation',
-                        data: [0, 0],
-                        backgroundColor: ['#17a2b8', '#ffc107'],
-                        borderRadius: 8,
-                        borderSkipped: false,
+                        label: 'Temperature vs Energy',
+                        data: [],
+                        backgroundColor: 'rgba(23, 162, 184, 0.6)',
+                        borderColor: 'rgba(23, 162, 184, 1)',
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }, {
+                        label: 'Temperature Trend',
+                        data: [],
+                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                        borderColor: 'rgba(23, 162, 184, 1)',
+                        borderWidth: 2,
+                        type: 'line',
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        showLine: true,
+                        tension: 0
+                    }, {
+                        label: 'Wind Speed vs Energy',
+                        data: [],
+                        backgroundColor: 'rgba(255, 193, 7, 0.6)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    }, {
+                        label: 'Wind Speed Trend',
+                        data: [],
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 2,
+                        type: 'line',
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        showLine: true,
+                        tension: 0
                     }]
                 },
                 options: {
@@ -369,20 +404,49 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            min: -1,
-                            max: 1,
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toFixed(2);
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                filter: function(item) {
+                                    return !item.text.includes('Trend');
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    if (label.includes('Trend')) return null;
+                                    return `${label}: (${context.parsed.x.toFixed(1)}, ${context.parsed.y.toFixed(0)})`;
                                 }
                             }
                         }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Weather Variable'
+                            },
+                            grid: {
+                                alpha: 0.3
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Energy Consumption'
+                            },
+                            grid: {
+                                alpha: 0.3
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'point'
                     }
                 }
             });
@@ -459,22 +523,93 @@
                 console.log('Weather data received:', data);
                 
                 if (data.status === 'success') {
-                    const correlations = data.correlations;
-                    weatherChart.data.datasets[0].data = [
-                        correlations.temperature || 0,
-                        correlations.wind_speed || 0
-                    ];
-                    weatherChart.update();
-                    
-                    // Update weather stats text
-                    const statsDiv = document.getElementById('weatherStats');
-                    if (statsDiv) {
-                        statsDiv.innerHTML = `
-                            🌡️ Temperature: ${(correlations.temperature || 0).toFixed(3)}<br>
-                            💨 Wind Speed: ${(correlations.wind_speed || 0).toFixed(3)}<br>
-                            📊 Sample Size: ${data.temperature_analysis?.sample_size || 'N/A'}
-                            ${data.note ? '<br><small>' + data.note + '</small>' : ''}
-                        `;
+                    // Check if new scatter plot data is available
+                    if (data.scatter_data && data.trend_lines) {
+                        // New scatter plot format
+                        weatherChart.data.datasets[0].data = data.scatter_data.temperature || [];
+                        weatherChart.data.datasets[1].data = data.trend_lines.temperature || [];
+                        weatherChart.data.datasets[2].data = data.scatter_data.wind_speed || [];
+                        weatherChart.data.datasets[3].data = data.trend_lines.wind_speed || [];
+                        
+                        weatherChart.update();
+                        
+                        // Update weather stats text with correlation and sample info
+                        const correlations = data.correlations;
+                        const statsDiv = document.getElementById('weatherStats');
+                        if (statsDiv) {
+                            statsDiv.innerHTML = `
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
+                                    <div>
+                                        <strong>🌡️ Temperature</strong><br>
+                                        <small>Correlation: ${(correlations.temperature || 0).toFixed(3)}</small><br>
+                                        <small>Points: ${data.scatter_data.temperature?.length || 0}</small>
+                                    </div>
+                                    <div>
+                                        <strong>💨 Wind Speed</strong><br>
+                                        <small>Correlation: ${(correlations.wind_speed || 0).toFixed(3)}</small><br>
+                                        <small>Points: ${data.scatter_data.wind_speed?.length || 0}</small>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                                    📊 Sample: ${data.temperature_analysis?.sample_size || 'N/A'} readings
+                                </div>
+                            `;
+                        }
+                    } else {
+                        // Fallback to old bar chart format if scatter data not available
+                        console.log('Using fallback bar chart format');
+                        
+                        // Convert scatter chart back to bar chart temporarily
+                        weatherChart.destroy();
+                        const ctx3 = document.getElementById('weatherChart').getContext('2d');
+                        weatherChart = new Chart(ctx3, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Temperature', 'Wind Speed'],
+                                datasets: [{
+                                    label: 'Correlation',
+                                    data: [
+                                        data.correlations.temperature || 0,
+                                        data.correlations.wind_speed || 0
+                                    ],
+                                    backgroundColor: ['#17a2b8', '#ffc107'],
+                                    borderRadius: 8,
+                                    borderSkipped: false,
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        min: -1,
+                                        max: 1,
+                                        ticks: {
+                                            callback: function(value) {
+                                                return value.toFixed(2);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Update stats with old format
+                        const correlations = data.correlations;
+                        const statsDiv = document.getElementById('weatherStats');
+                        if (statsDiv) {
+                            statsDiv.innerHTML = `
+                                🌡️ Temperature: ${(correlations.temperature || 0).toFixed(3)}<br>
+                                💨 Wind Speed: ${(correlations.wind_speed || 0).toFixed(3)}<br>
+                                📊 Sample Size: ${data.temperature_analysis?.sample_size || 'N/A'}
+                            `;
+                        }
                     }
                     console.log('Weather chart updated successfully');
                 } else {

@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Meter Data Explorer - Filter & Analyze Dataset</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 0;
+            min-height: 70vh;
+        }
+        
+        .filters-panel {
+            background: #f8f9fa;
+            padding: 25px;
+            border-right: 2px solid #e9ecef;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+        
+        .filters-panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+        
+        .filter-group {
+            margin-bottom: 25px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .filter-group h3 {
+            color: #495057;
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+        
+        .filter-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(46, 204, 113, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(45deg, #95a5a6, #bdc3c7);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+        
+        .data-panel {
+            padding: 25px;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+        
+        .data-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .data-info {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .pagination {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        
+        .pagination button {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 0.85rem;
+        }
+        
+        .pagination button:hover {
+            background: #f0f0f0;
+        }
+        
+        .pagination button.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .data-table th {
+            background: #34495e;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .data-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.85rem;
+        }
+        
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background: #fafafa;
+        }
+        
+        .data-table tr:nth-child(even):hover {
+            background: #f0f0f0;
+        }
+        
+        .anomaly-normal {
+            background: #d4edda;
+            color: #155724;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .anomaly-detected {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #f5c6cb;
+            margin: 20px 0;
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+        
+        .stat-card h4 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .export-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .navigation {
+            background: #34495e;
+            padding: 15px 30px;
+            text-align: center;
+        }
+        
+        .nav-btn {
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            margin: 0 10px;
+            font-weight: 600;
+            transition: background 0.3s ease;
+            display: inline-block;
+        }
+        
+        .nav-btn:hover {
+            background: #2980b9;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters-panel {
+                border-right: none;
+                border-bottom: 2px solid #e9ecef;
+                max-height: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .data-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .data-table {
+                font-size: 0.75rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 6px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Smart Meter Data Explorer</h1>
+            <p>Filter, search, and analyze your smart meter dataset with real-time insights</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- Filters Panel -->
+            <div class="filters-panel">
+                <h2>🎛️ Filters & Controls</h2>
+                
+                <!-- Building Filters -->
+                <div class="filter-group">
+                    <h3>🏢 Building Filters</h3>
+                    <div class="filter-row">
+                        <div>
+                            <label for="buildingIdMin">Building ID (Min)</label>
+                            <input type="number" id="buildingIdMin" placeholder="e.g., 0">
+                        </div>
+                        <div>
+                            <label for="buildingIdMax">Building ID (Max)</label>
+                            <input type="number" id="buildingIdMax" placeholder="e.g., 199">
+                        </div>
+                    </div>
+                    <label for="primaryUse">Primary Use</label>
+                    <select id="primaryUse">
+                        <option value="">All Types</option>
+                        <option value="Office">Office</option>
+                        <option value="Education">Education</option>
+                        <option value="Lodging/residential">Lodging/residential</option>
+                        <option value="Entertainment/public assembly">Entertainment/public assembly</option>
+                        <option value="Public services">Public services</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <!-- Energy Consumption Filters -->
+                <div class="filter-group">
+                    <h3>⚡ Energy Consumption</h3>
+                    <div class="filter-row">
+                        <div>
+                            <label for="meterReadingMin">Min Reading</label>
+                            <input type="number" id="meterReadingMin" step="0.01" placeholder="e.g., 0">
+                        </div>
+                        <div>
+                            <label for="meterReadingMax">Max Reading</label>
+                            <input type="number" id="meterReadingMax" step="0.01" placeholder="e.g., 1000">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Weather Filters -->
+                <div class="filter-group">
+                    <h3>🌤️ Weather Conditions</h3>
+                    <div class="filter-row">
+                        <div>
+                            <label for="tempMin">Min Temp (°C)</label>
+                            <input type="number" id="tempMin" step="0.1" placeholder="e.g., -10">
+                        </div>
+                        <div>
+                            <label for="tempMax">Max Temp (°C)</label>
+                            <input type="number" id="tempMax" step="0.1" placeholder="e.g., 40">
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <div>
+                            <label for="windSpeedMin">Min Wind (m/s)</label>
+                            <input type="number" id="windSpeedMin" step="0.1" placeholder="e.g., 0">
+                        </div>
+                        <div>
+                            <label for="windSpeedMax">Max Wind (m/s)</label>
+                            <input type="number" id="windSpeedMax" step="0.1" placeholder="e.g., 20">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Date Range Filters -->
+                <div class="filter-group">
+                    <h3>📅 Date Range</h3>
+                    <label for="dateFrom">From Date</label>
+                    <input type="date" id="dateFrom">
+                    <label for="dateTo">To Date</label>
+                    <input type="date" id="dateTo">
+                </div>
+                
+                <!-- Anomaly Filters -->
+                <div class="filter-group">
+                    <h3>⚠️ Anomaly Status</h3>
+                    <select id="anomalyFilter">
+                        <option value="">All Records</option>
+                        <option value="0">Normal Only</option>
+                        <option value="1">Anomalies Only</option>
+                    </select>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="filter-group">
+                    <h3>🎯 Actions</h3>
+                    <button class="btn" onclick="applyFilters()">🔍 Apply Filters</button>
+                    <button class="btn btn-secondary" onclick="clearFilters()">🗑️ Clear All</button>
+                    <button class="btn btn-danger" onclick="resetToDefaults()">🔄 Reset</button>
+                </div>
+                
+                <!-- Export Options -->
+                <div class="filter-group">
+                    <h3>📁 Export Data</h3>
+                    <button class="btn btn-secondary" onclick="exportToCSV()">📊 Export CSV</button>
+                    <button class="btn btn-secondary" onclick="exportToJSON()">📋 Export JSON</button>
+                </div>
+            </div>
+            
+            <!-- Data Display Panel -->
+            <div class="data-panel">
+                <!-- Summary Statistics -->
+                <div class="summary-stats" id="summaryStats">
+                    <div class="stat-card">
+                        <h4>Total Records</h4>
+                        <div class="value" id="totalRecords">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Buildings</h4>
+                        <div class="value" id="uniqueBuildings">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Anomalies</h4>
+                        <div class="value" id="totalAnomalies">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Avg Consumption</h4>
+                        <div class="value" id="avgConsumption">-</div>
+                    </div>
+                </div>
+                
+                <!-- Data Controls -->
+                <div class="data-controls">
+                    <div class="data-info">
+                        <span id="resultInfo">Loading data...</span>
+                    </div>
+                    <div class="pagination" id="paginationControls">
+                        <!-- Pagination buttons will be added here -->
+                    </div>
+                </div>
+                
+                <!-- Data Table -->
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Building ID</th>
+                                <th>Reading</th>
+                                <th>Timestamp</th>
+                                <th>Temperature</th>
+                                <th>Wind Speed</th>
+                                <th>Primary Use</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <tr>
+                                <td colspan="7" class="loading">Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="navigation">
+            <a href="dashboard.html" class="nav-btn">📈 Dashboard</a>
+            <a href="data-entry.html" class="nav-btn">📝 Add Data</a>
+            <a href="javascript:void(0)" onclick="refreshData()" class="nav-btn">🔄 Refresh</a>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = 'http://localhost:5000';
+        const RECORDS_PER_PAGE = 50;
+        
+        // State
+        let currentData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Data explorer page loaded');
+            loadInitialData();
+            setupEventListeners();
+        });
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Auto-apply filters on input change (with debounce)
+            const filterInputs = document.querySelectorAll('input, select');
+            filterInputs.forEach(input => {
+                if (input.id !== 'dateFrom' && input.id !== 'dateTo') {
+                    input.addEventListener('input', debounce(applyFilters, 500));
+                } else {
+                    input.addEventListener('change', applyFilters);
+                }
+            });
+        }
+        
+        // Debounce function for performance
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Load initial data
+        async function loadInitialData() {
+            try {
+                showLoading('Loading dataset...');
+                
+                // Load data directly from the data explorer endpoint
+                await loadDetailedData();
+                
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                showError('Failed to load data. Please check API connection.');
+            }
+        }
+        
+        // Load detailed meter reading data
+        async function loadDetailedData(filters = {}) {
+            try {
+                showLoading('Applying filters...');
+                
+                // Build query parameters from filters
+                const params = new URLSearchParams();
+                
+                // Add pagination
+                params.append('page', currentPage);
+                params.append('limit', RECORDS_PER_PAGE);
+                
+                // Add filter parameters
+                Object.keys(filters).forEach(key => {
+                    if (filters[key] !== '' && filters[key] !== null && filters[key] !== undefined) {
+                        params.append(key, filters[key]);
+                    }
+                });
+                
+                const url = `${API_BASE}/api/data-explorer?${params}`;
+                console.log('🔍 Fetching data from:', url);
+                
+                // Fetch from real API endpoint
+                const response = await fetch(url);
+                console.log('📡 Response status:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ API Error:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📊 Received data:', data);
+                
+                if (data.success) {
+                    filteredData = data.data;
+                    
+                    // Update pagination info
+                    totalPages = data.pagination.pages;
+                    currentPage = data.pagination.page;
+                    
+                    // Update summary statistics with real data
+                    updateSummaryStatsFromAPI(data.statistics);
+                    
+                    // Display the data
+                    displayCurrentPage();
+                    updatePagination();
+                    
+                    // Update result info
+                    const resultInfo = document.getElementById('resultInfo');
+                    const start = (currentPage - 1) * RECORDS_PER_PAGE + 1;
+                    const end = Math.min(currentPage * RECORDS_PER_PAGE, data.pagination.total);
+                    resultInfo.textContent = `Showing ${start}-${end} of ${data.pagination.total.toLocaleString()} records`;
+                    
+                } else {
+                    throw new Error(data.message || 'Failed to fetch data');
+                }
+                
+            } catch (error) {
+                console.error('Error loading detailed data:', error);
+                showError('Failed to load detailed data: ' + error.message);
+            }
+        }
+        
+        // Apply filters to current data
+        function applyFiltersToData(additionalFilters = {}) {
+            const filters = {
+                building_id_min: document.getElementById('buildingIdMin').value,
+                building_id_max: document.getElementById('buildingIdMax').value,
+                primary_use: document.getElementById('primaryUse').value,
+                meter_reading_min: document.getElementById('meterReadingMin').value,
+                meter_reading_max: document.getElementById('meterReadingMax').value,
+                temp_min: document.getElementById('tempMin').value,
+                temp_max: document.getElementById('tempMax').value,
+                wind_speed_min: document.getElementById('windSpeedMin').value,
+                wind_speed_max: document.getElementById('windSpeedMax').value,
+                date_from: document.getElementById('dateFrom').value,
+                date_to: document.getElementById('dateTo').value,
+                anomaly_filter: document.getElementById('anomalyFilter').value,
+                ...additionalFilters
+            };
+            
+            // Load data with the new filters
+            loadDetailedData(filters);
+        }
+        
+        // Apply filters (called by button)
+        function applyFilters() {
+            currentPage = 1;
+            applyFiltersToData();
+        }
+        
+        // Clear all filters
+        function clearFilters() {
+            document.querySelectorAll('input, select').forEach(input => {
+                input.value = '';
+            });
+            applyFilters();
+        }
+        
+        // Reset to defaults
+        function resetToDefaults() {
+            clearFilters();
+            loadInitialData();
+        }
+        
+        // Update summary statistics from API response
+        function updateSummaryStatsFromAPI(stats) {
+            document.getElementById('totalRecords').textContent = stats.total_records.toLocaleString();
+            document.getElementById('uniqueBuildings').textContent = stats.unique_buildings.toLocaleString();
+            document.getElementById('totalAnomalies').textContent = stats.total_anomalies.toLocaleString();
+            document.getElementById('avgConsumption').textContent = stats.avg_consumption + ' kWh';
+        }
+        
+        // Update summary statistics (for local filtering - kept for compatibility)
+        function updateSummaryStats() {
+            const totalRecords = filteredData.length;
+            const uniqueBuildings = new Set(filteredData.map(r => r.building_id)).size;
+            const totalAnomalies = filteredData.filter(r => r.anomaly === 1).length;
+            const avgConsumption = filteredData.length > 0 
+                ? (filteredData.reduce((sum, r) => sum + r.meter_reading, 0) / filteredData.length).toFixed(1)
+                : 0;
+            
+            document.getElementById('totalRecords').textContent = totalRecords.toLocaleString();
+            document.getElementById('uniqueBuildings').textContent = uniqueBuildings.toLocaleString();
+            document.getElementById('totalAnomalies').textContent = totalAnomalies.toLocaleString();
+            document.getElementById('avgConsumption').textContent = avgConsumption + ' kWh';
+        }
+        
+        // Update pagination
+        function updatePagination() {
+            const paginationContainer = document.getElementById('paginationControls');
+            paginationContainer.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            // Previous button
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '‹ Prev';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    applyFilters(); // Reload data for new page
+                }
+            };
+            paginationContainer.appendChild(prevBtn);
+            
+            // Page numbers
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = i === currentPage ? 'active' : '';
+                pageBtn.onclick = () => {
+                    currentPage = i;
+                    applyFilters(); // Reload data for new page
+                };
+                paginationContainer.appendChild(pageBtn);
+            }
+            
+            // Next button
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = 'Next ›';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    applyFilters(); // Reload data for new page
+                }
+            };
+            paginationContainer.appendChild(nextBtn);
+        }
+        
+        // Display current page of data
+        function displayCurrentPage() {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+            
+            if (filteredData.length === 0) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 7;
+                cell.className = 'loading';
+                cell.textContent = 'No records match the current filters.';
+                return;
+            }
+            
+            filteredData.forEach(record => {
+                const row = tbody.insertRow();
+                
+                row.insertCell().textContent = record.building_id;
+                row.insertCell().textContent = record.meter_reading.toFixed(2);
+                row.insertCell().textContent = record.timestamp ? new Date(record.timestamp).toLocaleString() : '-';
+                row.insertCell().textContent = record.air_temperature ? record.air_temperature.toFixed(1) + '°C' : '-';
+                row.insertCell().textContent = record.wind_speed ? record.wind_speed.toFixed(1) + ' m/s' : '-';
+                row.insertCell().textContent = record.primary_use || '-';
+                
+                const statusCell = row.insertCell();
+                const statusSpan = document.createElement('span');
+                statusSpan.className = record.anomaly === 1 ? 'anomaly-detected' : 'anomaly-normal';
+                statusSpan.textContent = record.anomaly === 1 ? '⚠️ Anomaly' : '✅ Normal';
+                statusCell.appendChild(statusSpan);
+            });
+        }
+        
+        // Export functions
+        function exportToCSV() {
+            const csv = convertToCSV(filteredData);
+            downloadFile(csv, 'smart_meter_data.csv', 'text/csv');
+        }
+        
+        function exportToJSON() {
+            const json = JSON.stringify(filteredData, null, 2);
+            downloadFile(json, 'smart_meter_data.json', 'application/json');
+        }
+        
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(header => 
+                    JSON.stringify(row[header] || '')
+                ).join(','))
+            ].join('\n');
+            
+            return csvContent;
+        }
+        
+        function downloadFile(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        // Utility functions
+        function showLoading(message) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = `<tr><td colspan="7" class="loading">${message}</td></tr>`;
+        }
+        
+        function showError(message) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = `<tr><td colspan="7" class="error">${message}</td></tr>`;
+        }
+        
+        function refreshData() {
+            loadInitialData();
+        }
+    </script>
+</body>
+</html>
