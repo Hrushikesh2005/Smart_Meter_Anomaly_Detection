@@ -230,6 +230,85 @@
         color: #555;
         line-height: 1.6;
       }
+
+      .anomalous-params {
+        margin-top: 20px;
+        padding: 20px;
+        background: #fff8e1;
+        border-radius: 10px;
+        border-left: 4px solid #ff9800;
+      }
+
+      .anomalous-params h3 {
+        color: #e65100;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+      }
+
+      .param-item {
+        background: white;
+        padding: 12px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        border-left: 3px solid #ff9800;
+      }
+
+      .param-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .param-name {
+        font-weight: 700;
+        color: #d84315;
+        font-size: 1em;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+      }
+
+      .param-details {
+        font-size: 0.9em;
+        color: #666;
+        line-height: 1.6;
+      }
+
+      .param-value {
+        color: #d84315;
+        font-weight: 600;
+      }
+
+      .severity-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: 600;
+        margin-left: 8px;
+      }
+
+      .severity-HIGH {
+        background: #f44336;
+        color: white;
+      }
+
+      .severity-MEDIUM {
+        background: #ff9800;
+        color: white;
+      }
+
+      .severity-LOW {
+        background: #ffc107;
+        color: #333;
+      }
+
+      .all-normal {
+        text-align: center;
+        color: #2e7d32;
+        font-size: 1.1em;
+        padding: 15px;
+        background: #e8f5e9;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
     </style>
   </head>
   <body>
@@ -415,6 +494,9 @@
             <div class="value" id="probAnomaly">-</div>
           </div>
         </div>
+
+        <!-- Anomalous Parameters Section -->
+        <div id="anomalousParamsSection"></div>
       </div>
     </div>
 
@@ -508,6 +590,50 @@
 
         document.getElementById("probAnomaly").textContent =
           (result.probability_anomaly * 100).toFixed(1) + "%";
+
+        // Display anomalous parameters
+        const paramsSection = document.getElementById("anomalousParamsSection");
+
+        if (
+          result.anomalous_parameters &&
+          result.anomalous_parameters.length > 0
+        ) {
+          let paramsHTML = `
+            <div class="anomalous-params">
+              <h3>⚠️ Anomalous Parameters Detected (${result.anomaly_count})</h3>
+          `;
+
+          result.anomalous_parameters.forEach((param) => {
+            paramsHTML += `
+              <div class="param-item">
+                <div class="param-name">
+                  ${param.parameter.replace(/_/g, " ")}
+                  <span class="severity-badge severity-${param.severity}">${
+              param.severity
+            }</span>
+                </div>
+                <div class="param-details">
+                  <strong>Current Value:</strong> <span class="param-value">${
+                    param.value
+                  }</span><br>
+                  <strong>Expected Range:</strong> ${param.expected_range}<br>
+                  <strong>Deviation:</strong> ${param.deviation.toFixed(
+                    2
+                  )}σ from mean (${param.mean.toFixed(2)})
+                </div>
+              </div>
+            `;
+          });
+
+          paramsHTML += "</div>";
+          paramsSection.innerHTML = paramsHTML;
+        } else {
+          paramsSection.innerHTML = `
+            <div class="all-normal">
+              ✅ All parameters are within normal ranges
+            </div>
+          `;
+        }
 
         // Show result card
         resultCard.style.display = "block";

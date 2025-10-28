@@ -19,7 +19,7 @@ class AnomalyModelTrainer:
         self.model = None
         self.feature_columns = None
         
-    def load_data(self, sample_size=100000):
+    def load_data(self, sample_size=700000):
         """Load data from MongoDB for training"""
         print(f"📥 Loading {sample_size:,} samples from MongoDB...")
         
@@ -124,7 +124,7 @@ class AnomalyModelTrainer:
         print(f"✅ Model saved successfully!")
         print(f"   Features: {self.feature_columns}")
     
-    def run_training(self, sample_size=100000):
+    def run_training(self, sample_size=700000):
         """Complete training pipeline"""
         print("\n" + "="*60)
         print("  🤖 XGBoost Anomaly Detection Model Training")
@@ -155,7 +155,7 @@ class AnomalyModelTrainer:
 if __name__ == "__main__":
     try:
         trainer = AnomalyModelTrainer()
-        trainer.run_training(sample_size=100000)
+        trainer.run_training(sample_size=700000)
         
     except Exception as e:
         print(f"\n❌ Error: {str(e)}")
